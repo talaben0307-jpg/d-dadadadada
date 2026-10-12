@@ -1,0 +1,122 @@
+-- Tải thư viện Fluent UI
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Khởi tạo Window Fluent
+local Window = Fluent:CreateWindow({
+    Title = "Brookhaven Skin Stealer",
+    SubTitle = "by Phong | Fluent UI",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(500, 380),
+    Acrylic = true,
+    Theme = "Darker",
+    MinimizeKey = Enum.KeyCode.F -- Phím F để ẩn/hiện menu
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Skin Stealer", Icon = "user-check" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+Tabs.Main:AddSection("Quản lý Skin người chơi")
+
+-- Biến lưu trữ danh sách người chơi và người được chọn
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local selectedPlayerName = nil
+local playerDropdown = nil
+
+-- Hàm lấy danh sách tên tất cả người chơi trong server
+fn_GetPlayerList = function()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(list, p.Name)
+        end
+    end
+    return list
+end
+
+-- Dropdown chọn người chơi
+playerDropdown = Tabs.Main:AddDropdown("TargetPlayerDropdown", {
+    Title = "Chọn người chơi trong server",
+    Values = fn_GetPlayerList(),
+    Default = 1,
+    Callback = function(Value)
+        selectedPlayerName = Value
+    end
+})
+
+-- Nút Refresh danh sách người chơi
+Tabs.Main:AddButton({
+    Title = "🔄 Refresh danh sách người chơi",
+    Callback = function()
+        local newList = fn_GetPlayerList()
+        playerDropdown:SetValues(newList)
+        Fluent:Notify({ Title = "Thành công", Content = "Đã cập nhật danh sách người chơi mới nhất!", Duration = 3 })
+    end
+})
+
+-- Nút quét skin, xóa đồ cũ và áp dụng skin của người chơi đó
+Tabs.Main:AddButton({
+    Title = "✨ Quét & Mặc toàn bộ Skin của họ",
+    Callback = function()
+        if not selectedPlayerName then
+            Fluent:Notify({ Title = "Lỗi", Content = "Chưa chọn người chơi nào!", Duration = 3 })
+            return
+        end
+
+        local targetPlayer = Players:FindFirstChild(selectedPlayerName)
+        if not targetPlayer or not targetPlayer.Character then
+            Fluent:Notify({ Title = "Lỗi", Content = "Không tìm thấy nhân vật của người chơi này!", Duration = 3 })
+            return
+        end
+
+        local targetChar = targetPlayer.Character
+        local localChar = LocalPlayer.Character
+
+        if not localChar or not localChar:FindFirstChild("Humanoid") then
+            Fluent:Notify({ Title = "Lỗi", Content = "Nhân vật của cậu chưa sẵn sàng!", Duration = 3 })
+            return
+        end
+
+        pcall(function()
+            local targetHumanoid = targetChar:FindFirstChildOfClass("Humanoid")
+            local localHumanoid = localChar:FindFirstChildOfClass("Humanoid")
+            
+            if targetHumanoid and localHumanoid then
+                -- 1. Lấy HumanoidDescription của mục tiêu (chứa toàn bộ thông tin áo, quần, tóc, phụ kiện)
+                local targetDesc = targetHumanoid:GetAppliedDescription()
+                
+                -- 2. Xóa sạch các phụ kiện / trang phục hiện tại đang có trên người
+                for _, v in ipairs(localChar:GetChildren()) do
+                    if v:IsA("Accessory") or v:IsA("Clothing") or v:IsA("ShirtGraphic") then
+                        v:Destroy()
+                    end
+                end
+                
+                -- 3. Áp dụng toàn bộ HumanoidDescription của người chơi mục tiêu lên bản thân
+                localHumanoid:ApplyDescription(targetDesc)
+                
+                Fluent:Notify({
+                    Title = "Thành công",
+                    Content = "Đã sao chép và thay thế toàn bộ skin của " .. selectedPlayerName .. "!",
+                    Duration = 4
+                })
+            end
+        end)
+    end
+})
+
+-- Tùy chỉnh cài đặt giao diện Fluent
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+
+Fluent:Notify({
+    Title = "Brookhaven Hub",
+    Content = "Script đã sẵn sàng! Bấm F để ẩn/hiện menu.",
+    Duration = 4
+})
